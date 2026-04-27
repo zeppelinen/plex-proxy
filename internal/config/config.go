@@ -79,11 +79,10 @@ func Load(path string) (Config, error) {
 	usedDefaultPath := false
 	if path == "" {
 		candidate, err := DefaultConfigFile()
-		if err != nil {
-			return Config{}, err
+		if err == nil {
+			path = candidate
+			usedDefaultPath = true
 		}
-		path = candidate
-		usedDefaultPath = true
 	}
 	if path != "" {
 		data, err := os.ReadFile(path)
