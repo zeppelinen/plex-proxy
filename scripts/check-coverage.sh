@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RESULTS_DIR="${RESULTS_DIR:-$ROOT/test-results}"
 COVERAGE_PROFILE="${COVERAGE_PROFILE:-$RESULTS_DIR/coverage.out}"
+COVERAGE_REPORT="${COVERAGE_REPORT:-$RESULTS_DIR/coverage.md}"
 BASE_REF="${BASE_REF:-${GITHUB_BASE_REF:-}}"
 GO="${GO:-go}"
 
@@ -13,6 +14,7 @@ coverage_percent() {
 
 write_summary() {
   local body="$1"
+  printf '%s\n' "$body" >"$COVERAGE_REPORT"
   if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
     printf '%s\n' "$body" >>"$GITHUB_STEP_SUMMARY"
   fi
@@ -26,7 +28,7 @@ if [[ -n "$BASE_REF" ]]; then
   changed_files="$(git diff --name-only "origin/$BASE_REF" HEAD)"
   app_files="$(printf '%s\n' "$changed_files" | grep -E '(^go\.(mod|sum)$|\.go$)' || true)"
   if [[ -z "$app_files" ]]; then
-    summary="$(printf '## Coverage\n\nCoverage comparison skipped because this change does not touch Go app or module files.')"
+    summary="$(printf '<!-- plex-proxy-coverage-report -->\n## Coverage\n\nCoverage comparison skipped because this change does not touch Go app or module files.')"
     write_summary "$summary"
     echo "Coverage comparison skipped: no Go app or module files changed."
     exit 0
@@ -44,7 +46,7 @@ if [[ -z "$head_coverage" ]]; then
 fi
 
 if [[ -z "$BASE_REF" ]]; then
-  summary="$(printf '## Coverage\n\nCurrent coverage: `%s%%`\n\nNo base ref was provided, so regression comparison was skipped.' "$head_coverage")"
+  summary="$(printf '<!-- plex-proxy-coverage-report -->\n## Coverage\n\nCurrent coverage: `%s%%`\n\nNo base ref was provided, so regression comparison was skipped.' "$head_coverage")"
   write_summary "$summary"
   echo "Current coverage: $head_coverage%"
   exit 0
@@ -72,7 +74,7 @@ if [[ -z "$base_coverage" ]]; then
 fi
 
 delta="$(awk -v head="$head_coverage" -v base="$base_coverage" 'BEGIN { printf "%.1f", head - base }')"
-summary="$(printf '## Coverage\n\nBase `%s`: `%s%%`\n\nCurrent: `%s%%`\n\nDelta: `%+.1f%%`' "$BASE_REF" "$base_coverage" "$head_coverage" "$delta")"
+summary="$(printf '<!-- plex-proxy-coverage-report -->\n## Coverage\n\nBase `%s`: `%s%%`\n\nCurrent: `%s%%`\n\nDelta: `%+.1f%%`' "$BASE_REF" "$base_coverage" "$head_coverage" "$delta")"
 write_summary "$summary"
 
 if awk -v head="$head_coverage" -v base="$base_coverage" 'BEGIN { exit !(head + 0.00001 < base) }'; then

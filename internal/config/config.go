@@ -17,6 +17,7 @@ const (
 	DefaultHealthListen = "127.0.0.1:8080"
 	DefaultRemotePort   = 32400
 	DefaultTunnelListen = "127.0.0.1:0"
+	DefaultConfigPath   = ".config/plex-proxy/config.yaml"
 )
 
 type Config struct {
@@ -50,7 +51,8 @@ type PlexConfig struct {
 }
 
 type ProxyConfig struct {
-	Listen string `yaml:"listen"`
+	Listen    string `yaml:"listen"`
+	AccessLog bool   `yaml:"access_log"`
 }
 
 type GDMConfig struct {
@@ -74,9 +76,24 @@ type ForwardConfig struct {
 
 func Load(path string) (Config, error) {
 	cfg := Defaults()
+	usedDefaultPath := false
+	if path == "" {
+		candidate, err := DefaultConfigFile()
+		if err == nil {
+			path = candidate
+			usedDefaultPath = true
+		}
+	}
 	if path != "" {
 		data, err := os.ReadFile(path)
 		if err != nil {
+			if usedDefaultPath && errors.Is(err, os.ErrNotExist) {
+				ApplyEnv(&cfg)
+				if err := cfg.Validate(); err != nil {
+					return Config{}, err
+				}
+				return cfg, nil
+			}
 			return Config{}, err
 		}
 		if err := yaml.Unmarshal(data, &cfg); err != nil {
@@ -88,6 +105,14 @@ func Load(path string) (Config, error) {
 		return Config{}, err
 	}
 	return cfg, nil
+}
+
+func DefaultConfigFile() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return home + string(os.PathSeparator) + DefaultConfigPath, nil
 }
 
 func Defaults() Config {
@@ -103,7 +128,7 @@ func Defaults() Config {
 			Version:    "1.0.0",
 			Scheme:     "http",
 		},
-		Proxy:  ProxyConfig{Listen: DefaultHTTPListen},
+		Proxy:  ProxyConfig{Listen: DefaultHTTPListen, AccessLog: true},
 		GDM:    GDMConfig{Enabled: true, Ports: []int{32410, 32412, 32413, 32414}},
 		Health: HealthConfig{Listen: DefaultHealthListen},
 		Forward: []ForwardConfig{

@@ -1,7 +1,9 @@
 package proxy
 
 import (
+	"bytes"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -62,6 +64,70 @@ func TestProxyStreamsResponse(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	if string(body) != "chunk" {
 		t.Fatalf("body = %q", body)
+	}
+}
+
+func TestAccessLogEnabled(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte("created"))
+	}))
+	defer backend.Close()
+	target, _ := TargetURL("http", strings.TrimPrefix(backend.URL, "http://"))
+
+	req := httptest.NewRequest(http.MethodPost, "http://proxy/library?x=1", nil)
+	req.RemoteAddr = net.JoinHostPort("192.0.2.51", "5000")
+	req.Header.Set("User-Agent", "plex-test")
+	rec := httptest.NewRecorder()
+	NewWithOptions(target, "plex.local:32400", Options{Log: logger, AccessLog: true}).ServeHTTP(rec, req)
+
+	got := logs.String()
+	for _, want := range []string{`msg="proxy access"`, `method=POST`, `path="/library?x=1"`, `remote_addr=192.0.2.51:5000`, `user_agent=plex-test`, `status=201`, `bytes=7`} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("access log missing %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestAccessLogCanBeDisabled(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer backend.Close()
+	target, _ := TargetURL("http", strings.TrimPrefix(backend.URL, "http://"))
+
+	req := httptest.NewRequest(http.MethodGet, "http://proxy/", nil)
+	rec := httptest.NewRecorder()
+	NewWithOptions(target, "plex.local:32400", Options{Log: logger, AccessLog: false}).ServeHTTP(rec, req)
+
+	if logs.Len() != 0 {
+		t.Fatalf("unexpected access log: %s", logs.String())
+	}
+}
+
+func TestProxyErrorLogIncludesRequestDetails(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	target, _ := TargetURL("http", "127.0.0.1:1")
+
+	req := httptest.NewRequest(http.MethodGet, "http://proxy/transcode?session=1", nil)
+	req.RemoteAddr = net.JoinHostPort("192.0.2.52", "5001")
+	req.Header.Set("User-Agent", "plex-client")
+	rec := httptest.NewRecorder()
+	NewWithOptions(target, "plex.local:32400", Options{Log: logger, AccessLog: false}).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	got := logs.String()
+	for _, want := range []string{`level=ERROR`, `msg="proxy request failed"`, `method=GET`, `path="/transcode?session=1"`, `host=proxy`, `remote_addr=192.0.2.52:5001`, `user_agent=plex-client`, `error=`} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("error log missing %q:\n%s", want, got)
+		}
 	}
 }
 

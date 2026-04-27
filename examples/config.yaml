@@ -16,6 +16,8 @@ plex:
 
 proxy:
   listen: 0.0.0.0:32400
+  # Set false to disable per-request HTTP access logs.
+  access_log: true
 
 gdm:
   enabled: true

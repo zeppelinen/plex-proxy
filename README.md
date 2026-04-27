@@ -63,9 +63,12 @@ The release build script produces:
 plex-proxy serve -config /etc/plex-proxy/config.yaml
 plex-proxy config validate -config /etc/plex-proxy/config.yaml
 plex-proxy version
+plex-proxy help
 ```
 
-If no command is provided, `plex-proxy` runs `serve`.
+If no command is provided, `plex-proxy` runs `serve`. If `serve` or
+`config validate` is run without `-config`, `plex-proxy` tries
+`$HOME/.config/plex-proxy/config.yaml`.
 
 ## Configuration
 
@@ -91,6 +94,8 @@ plex:
 
 proxy:
   listen: 0.0.0.0:32400
+  # Set false to disable per-request HTTP access logs.
+  access_log: true
 
 gdm:
   enabled: true
