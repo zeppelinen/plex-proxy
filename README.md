@@ -126,25 +126,28 @@ Start from [examples/config.yaml](examples/config.yaml).
 
 ```yaml
 ssh:
-  target: user@jump-host.example.com
+  # SSH host from ~/.ssh/config, or user@host.
+  target: myhome-srv
   local_listen: 127.0.0.1:0
   # identity_file: /home/plex-proxy/.ssh/id_ed25519
   # config_file: /home/plex-proxy/.ssh/config
   # extra_args: ["-J", "bastion.example.com"]
 
 plex:
-  remote_host: 127.0.0.1
+  # Plex IP or hostname as seen from the SSH target.
+  remote_host: 192.168.1.110
   remote_port: 32400
   server_name: Remote Plex
-  machine_id: plex-proxy-local
-  version: 1.0.0
+  # Set these to the real values from http://127.0.0.1:32400/identity.
+  machine_id: real-plex-machine-identifier
+  version: real-plex-version
 
 proxy:
   listen: 0.0.0.0:32400
 
 gdm:
   enabled: true
-  # Set this when auto-detection picks the wrong LAN address.
+  # Set this to the plex-proxy machine's LAN IP when auto-detection picks the wrong address.
   # advertise_host: 192.168.1.10
   ports: [32410, 32412, 32413, 32414]
 
@@ -167,6 +170,12 @@ Required fields:
 - `plex.remote_host`: Plex host as seen from the SSH target.
 - `plex.remote_port`: Plex port, normally `32400`.
 - `plex.server_name`: name advertised to local players.
+
+For best Plex client discovery behavior, set `plex.machine_id` and
+`plex.version` to the values returned by the real server's proxied
+`/identity` endpoint. The GDM `Resource-Identifier` should match the Plex
+`machineIdentifier`; placeholder IDs can make clients discover a server they
+then cannot match to the HTTP identity endpoint.
 
 Useful environment overrides:
 
