@@ -25,5 +25,9 @@ services:
     build:
       context: ../..
       dockerfile: test/e2e/Dockerfile.test
+    environment:
+      JUNIT_OUTPUT: /test-results/e2e.xml
+    volumes:
+      - ${E2E_RESULTS_DIR:-./test-results}:/test-results
     depends_on:
       - proxy
