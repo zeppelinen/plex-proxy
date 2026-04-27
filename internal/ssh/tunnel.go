@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -86,15 +88,22 @@ func (s *Supervisor) Run(ctx context.Context) error {
 	if maxBackoff <= 0 {
 		maxBackoff = 30 * time.Second
 	}
+	runConfig := s.Config
+	configFile, cleanup, err := configFileForRun(runConfig.ConfigFile)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+	runConfig.ConfigFile = configFile
 	for {
-		localAddr, err := reserveAddr(s.Config.LocalListen)
+		localAddr, err := reserveAddr(runConfig.LocalListen)
 		if err != nil {
 			return err
 		}
 		s.current.Store(localAddr)
-		args := BuildArgs(s.Config, localAddr)
+		args := BuildArgs(runConfig, localAddr)
 		if s.Logger != nil {
-			s.Logger.Info("starting ssh tunnel", "local", localAddr, "remote", s.Config.RemoteAddr)
+			s.Logger.Info("starting ssh tunnel", "local", localAddr, "remote", runConfig.RemoteAddr)
 		}
 		err = s.Runner.Run(ctx, "ssh", args...)
 		if s.Ready != nil {
@@ -137,6 +146,81 @@ func ExitCode(err error) (int, bool) {
 		return exitCoder.ExitCode(), true
 	}
 	return 0, false
+}
+
+func configFileForRun(path string) (string, func(), error) {
+	if path == "" {
+		defaultPath, err := defaultSSHConfigFile()
+		if err != nil {
+			return "", func() {}, nil
+		}
+		path = defaultPath
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return "", func() {}, nil
+		}
+		return "", nil, err
+	}
+	filtered := stripForwardingDirectives(string(data))
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".plex-proxy-ssh-config-*")
+	if err != nil {
+		return "", nil, err
+	}
+	cleanup := func() {
+		_ = os.Remove(tmp.Name())
+	}
+	if _, err := tmp.WriteString(filtered); err != nil {
+		_ = tmp.Close()
+		cleanup()
+		return "", nil, err
+	}
+	if err := tmp.Close(); err != nil {
+		cleanup()
+		return "", nil, err
+	}
+	return tmp.Name(), cleanup, nil
+}
+
+func defaultSSHConfigFile() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, ".ssh", "config"), nil
+}
+
+func stripForwardingDirectives(data string) string {
+	var b strings.Builder
+	for _, line := range strings.SplitAfter(data, "\n") {
+		if isConfigForwardingDirective(line) {
+			continue
+		}
+		b.WriteString(line)
+	}
+	return b.String()
+}
+
+func isConfigForwardingDirective(line string) bool {
+	trimmed := strings.TrimLeft(line, " \t")
+	if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+		return false
+	}
+	fields := strings.Fields(trimmed)
+	if len(fields) == 0 {
+		return false
+	}
+	keyword := strings.ToLower(fields[0])
+	if before, _, ok := strings.Cut(keyword, "="); ok {
+		keyword = before
+	}
+	switch keyword {
+	case "localforward", "remoteforward", "dynamicforward":
+		return true
+	default:
+		return false
+	}
 }
 
 func BuildArgs(c Config, localAddr string) []string {
