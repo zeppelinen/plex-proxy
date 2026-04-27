@@ -4,3 +4,4 @@ coverage.out
 test-results/
 .DS_Store
 test/e2e/.tmp/
+.cache
