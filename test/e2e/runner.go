@@ -20,8 +20,15 @@ func main() {
 		runCheck("GDM proxy forwards discovery", checkGDM),
 	}
 
-	if err := writeJUnit(os.Getenv("JUNIT_OUTPUT"), results); err != nil {
+	junitOutput := os.Getenv("JUNIT_OUTPUT")
+	if err := writeJUnit(junitOutput, results); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		if junitOutput != "" {
+			results = append(results, testResult{
+				Name:    "Write JUnit report",
+				Failure: err.Error(),
+			})
+		}
 	}
 
 	for _, result := range results {
