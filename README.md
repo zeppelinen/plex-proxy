@@ -19,73 +19,20 @@ listener directly to the public internet.
 
 ## Install
 
-Copy and paste this script to install the latest release artifact for your
-platform into `/usr/local/bin`.
+Install the latest release artifact for your platform into `/usr/local/bin`:
 
 ```sh
-set -euo pipefail
-
-repo="zeppelinen/plex-proxy"
-bin_dir="${BIN_DIR:-/usr/local/bin}"
-tmp_dir="$(mktemp -d)"
-trap 'rm -rf "$tmp_dir"' EXIT
-
-os="$(uname -s | tr '[:upper:]' '[:lower:]')"
-arch="$(uname -m)"
-case "$os/$arch" in
-  linux/x86_64) target="linux_amd64" ;;
-  linux/aarch64|linux/arm64) target="linux_arm64" ;;
-  darwin/arm64) target="darwin_arm64" ;;
-  *)
-    echo "unsupported platform: $os/$arch" >&2
-    exit 1
-    ;;
-esac
-
-asset_url="$(
-  curl -fsSL "https://api.github.com/repos/${repo}/releases/latest" |
-    sed -nE "s#.*\"browser_download_url\": \"([^\"]*plex-proxy_[^\"]*_${target}\\.tar\\.gz)\".*#\\1#p" |
-    head -n 1
-)"
-
-if [ -z "$asset_url" ]; then
-  echo "could not find latest plex-proxy artifact for ${target}" >&2
-  exit 1
-fi
-
-curl -fsSL "$asset_url" -o "$tmp_dir/plex-proxy.tar.gz"
-tar -xzf "$tmp_dir/plex-proxy.tar.gz" -C "$tmp_dir"
-install -m 0755 "$(find "$tmp_dir" -type f -name plex-proxy | head -n 1)" "$bin_dir/plex-proxy"
-
-plex-proxy version
+curl -fsSL https://raw.githubusercontent.com/zeppelinen/plex-proxy/main/install.sh | bash
 ```
 
-### macOS Gatekeeper
-
-macOS may block the downloaded binary with this message:
-
-```text
-"plex-proxy" not opened
-Apple could not verify "plex-proxy" is free of malware that may harm your Mac or compromise your privacy.
-```
-
-If you downloaded `plex-proxy` from this repository's GitHub Releases page and
-trust that artifact, remove the quarantine attribute before installing:
+To install somewhere else:
 
 ```sh
-cd ~/Downloads
-tar -xzf plex-proxy_v0.1.0_darwin_arm64.tar.gz
-cd plex-proxy_v0.1.0_darwin_arm64
-
-xattr -d com.apple.quarantine ./plex-proxy
-./plex-proxy version
-
-sudo install -m 0755 ./plex-proxy /usr/local/bin/plex-proxy
-plex-proxy version
+curl -fsSL https://raw.githubusercontent.com/zeppelinen/plex-proxy/main/install.sh | BIN_DIR="$HOME/.local/bin" bash
 ```
 
-You can also open **System Settings**, go to **Privacy & Security**, scroll down,
-and click **Open Anyway** for `plex-proxy` after the first failed launch.
+On macOS, the installer prints follow-up steps for System Settings > Privacy &
+Security if Gatekeeper blocks the downloaded binary.
 
 PR builds also upload temporary artifacts that expire after 7 days. To download
 one with GitHub CLI:
