@@ -60,6 +60,33 @@ install -m 0755 "$(find "$tmp_dir" -type f -name plex-proxy | head -n 1)" "$bin_
 plex-proxy version
 ```
 
+### macOS Gatekeeper
+
+macOS may block the downloaded binary with this message:
+
+```text
+"plex-proxy" not opened
+Apple could not verify "plex-proxy" is free of malware that may harm your Mac or compromise your privacy.
+```
+
+If you downloaded `plex-proxy` from this repository's GitHub Releases page and
+trust that artifact, remove the quarantine attribute before installing:
+
+```sh
+cd ~/Downloads
+tar -xzf plex-proxy_v0.1.0_darwin_arm64.tar.gz
+cd plex-proxy_v0.1.0_darwin_arm64
+
+xattr -d com.apple.quarantine ./plex-proxy
+./plex-proxy version
+
+sudo install -m 0755 ./plex-proxy /usr/local/bin/plex-proxy
+plex-proxy version
+```
+
+You can also open **System Settings**, go to **Privacy & Security**, scroll down,
+and click **Open Anyway** for `plex-proxy` after the first failed launch.
+
 PR builds also upload temporary artifacts that expire after 7 days. To download
 one with GitHub CLI:
 
