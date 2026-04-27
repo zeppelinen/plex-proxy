@@ -13,15 +13,37 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: true
+
+      - run: go test ./...
+      - run: go vet ./...
+
+      - run: ./scripts/update-changelog.sh "${{ github.ref_name }}"
+
       - run: ./scripts/build-release.sh
         env:
           VERSION: ${{ github.ref_name }}
+
+      - run: ./scripts/extract-release-notes.sh "${{ github.ref_name }}" release-notes.md
+
       - uses: softprops/action-gh-release@v3
         with:
+          body_path: release-notes.md
           files: |
             dist/*.tar.gz
             dist/checksums.txt
+
+      - name: Commit changelog
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "Update changelog for ${{ github.ref_name }}"
+          git push origin HEAD:main
