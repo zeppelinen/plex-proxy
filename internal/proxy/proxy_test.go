@@ -80,3 +80,45 @@ func TestWebsocketHeaders(t *testing.T) {
 	rec := httptest.NewRecorder()
 	New(target, "plex.local:32400").ServeHTTP(rec, req)
 }
+
+func TestProxyRewritesServersEndpointToClientHost(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/servers" {
+			t.Fatalf("path = %q", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "text/xml;charset=utf-8")
+		_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+<MediaContainer size="1">
+<Server name="plex" host="192.168.1.5" address="192.168.1.5" port="32400" machineIdentifier="id" version="1.2.3" />
+</MediaContainer>`))
+	}))
+	defer backend.Close()
+	target, _ := TargetURL("http", strings.TrimPrefix(backend.URL, "http://"))
+
+	req := httptest.NewRequest(http.MethodGet, "http://proxy.local:32401/servers", nil)
+	req.Host = "proxy.local:32401"
+	req.RemoteAddr = net.JoinHostPort("192.0.2.50", "1234")
+	rec := httptest.NewRecorder()
+	New(target, "plex.local:32400").ServeHTTP(rec, req)
+
+	body := rec.Body.String()
+	for _, want := range []string{`host="proxy.local"`, `address="proxy.local"`, `port="32401"`, `machineIdentifier="id"`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("response missing %q:\n%s", want, body)
+		}
+	}
+}
+
+func TestServersXMLRewriteKeepsFallbackPort(t *testing.T) {
+	body := []byte(`<MediaContainer size="1"><Server name="plex" host="192.168.1.5" address="192.168.1.5" port="32400" /></MediaContainer>`)
+	rewritten, changed := rewriteServersXML(body, "proxy.local")
+	if !changed {
+		t.Fatal("expected rewrite")
+	}
+	got := string(rewritten)
+	for _, want := range []string{`host="proxy.local"`, `address="proxy.local"`, `port="32400"`} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("response missing %q:\n%s", want, got)
+		}
+	}
+}

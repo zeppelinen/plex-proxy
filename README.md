@@ -136,8 +136,9 @@ plex:
   remote_host: 127.0.0.1
   remote_port: 32400
   server_name: Remote Plex
-  machine_id: plex-proxy-local
-  version: 1.0.0
+  # Set these to the real values from http://127.0.0.1:32400/identity.
+  # machine_id: real-plex-machine-identifier
+  # version: real-plex-version
 
 proxy:
   listen: 0.0.0.0:32400
@@ -167,6 +168,12 @@ Required fields:
 - `plex.remote_host`: Plex host as seen from the SSH target.
 - `plex.remote_port`: Plex port, normally `32400`.
 - `plex.server_name`: name advertised to local players.
+
+For best Plex client discovery behavior, set `plex.machine_id` and
+`plex.version` to the values returned by the real server's proxied
+`/identity` endpoint. The GDM `Resource-Identifier` should match the Plex
+`machineIdentifier`; placeholder IDs can make clients discover a server they
+then cannot match to the HTTP identity endpoint.
 
 Useful environment overrides:
 

@@ -1,6 +1,5 @@
 ssh:
   target: plex-jump.example.com
-  remote_host: ignored
   local_listen: 127.0.0.1:0
   # identity_file: /home/plex-proxy/.ssh/id_ed25519
   # config_file: /home/plex-proxy/.ssh/config
@@ -9,8 +8,9 @@ plex:
   remote_host: 127.0.0.1
   remote_port: 32400
   server_name: Remote Plex
-  machine_id: plex-proxy-local
-  version: 1.0.0
+  # Set these to the real values from http://127.0.0.1:32400/identity.
+  # machine_id: real-plex-machine-identifier
+  # version: real-plex-version
 
 proxy:
   listen: 0.0.0.0:32400
