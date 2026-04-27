@@ -23,7 +23,7 @@ mkdir -p "$RESULTS_DIR"
 if [[ -n "$BASE_REF" ]]; then
   git fetch --no-tags --depth=1 origin "$BASE_REF"
 
-  changed_files="$(git diff --name-only "origin/$BASE_REF"...HEAD)"
+  changed_files="$(git diff --name-only "origin/$BASE_REF" HEAD)"
   app_files="$(printf '%s\n' "$changed_files" | grep -E '(^go\.(mod|sum)$|\.go$)' || true)"
   if [[ -z "$app_files" ]]; then
     summary="$(printf '## Coverage\n\nCoverage comparison skipped because this change does not touch Go app or module files.')"
