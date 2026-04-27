@@ -5,9 +5,11 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -161,5 +163,59 @@ func TestConfigFileForRunSanitizesExplicitConfig(t *testing.T) {
 	}
 	if !strings.Contains(string(data), "HostName plex.example.com") {
 		t.Fatalf("config lost host settings:\n%s", data)
+	}
+}
+
+func TestReserveAddrKeepsAvailableFixedPort(t *testing.T) {
+	addr, err := reserveAddr("127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, port, err := net.SplitHostPort(addr); err != nil {
+		t.Fatal(err)
+	} else if port == "0" {
+		t.Fatalf("port was not reserved: %q", addr)
+	}
+
+	got, err := reserveAddr(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != addr {
+		t.Fatalf("addr = %q, want %q", got, addr)
+	}
+}
+
+func TestReserveAddrFallsBackWhenFixedPortOccupied(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	occupied := ln.Addr().String()
+	got, err := reserveAddr(occupied)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got == occupied {
+		t.Fatalf("addr = %q, want different port", got)
+	}
+	gotHost, gotPort, err := net.SplitHostPort(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	occupiedHost, occupiedPort, err := net.SplitHostPort(occupied)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotHost != occupiedHost {
+		t.Fatalf("host = %q, want %q", gotHost, occupiedHost)
+	}
+	if gotPort == occupiedPort {
+		t.Fatalf("port = %q, want different from occupied %q", gotPort, occupiedPort)
+	}
+	if parsed, err := strconv.Atoi(gotPort); err != nil || parsed <= 0 {
+		t.Fatalf("port = %q, err = %v", gotPort, err)
 	}
 }

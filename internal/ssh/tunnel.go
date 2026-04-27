@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"time"
 )
 
@@ -244,10 +245,22 @@ func reserveAddr(addr string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if port != "0" {
-		return addr, nil
+	if port == "0" {
+		return reserveAnyPort(host)
 	}
 	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		if errors.Is(err, syscall.EADDRINUSE) {
+			return reserveAnyPort(host)
+		}
+		return "", err
+	}
+	defer ln.Close()
+	return addr, nil
+}
+
+func reserveAnyPort(host string) (string, error) {
+	ln, err := net.Listen("tcp", net.JoinHostPort(host, "0"))
 	if err != nil {
 		return "", err
 	}
