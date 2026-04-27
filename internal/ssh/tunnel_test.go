@@ -1,9 +1,12 @@
 package ssh
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log/slog"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -55,5 +58,53 @@ func TestSupervisorRestarts(t *testing.T) {
 	}
 	if runner.calls < 2 {
 		t.Fatalf("calls = %d", runner.calls)
+	}
+}
+
+type codedExitError struct {
+	code int
+}
+
+func (e codedExitError) Error() string {
+	return "exit"
+}
+
+func (e codedExitError) ExitCode() int {
+	return e.code
+}
+
+func TestExitCodeUnwrapsCommandError(t *testing.T) {
+	err := &CommandError{Name: "ssh", Err: codedExitError{code: 255}}
+	code, ok := ExitCode(err)
+	if !ok {
+		t.Fatal("expected exit code")
+	}
+	if code != 255 {
+		t.Fatalf("code = %d", code)
+	}
+}
+
+func TestCommandErrorIncludesTrimmedOutput(t *testing.T) {
+	err := &CommandError{Name: "ssh", Err: codedExitError{code: 255}, Output: "\nPermission denied\n"}
+	if got := err.Error(); !strings.Contains(got, "Permission denied") {
+		t.Fatalf("error = %q", got)
+	}
+}
+
+func TestSupervisorLogsSSH255Hint(t *testing.T) {
+	var buf bytes.Buffer
+	s := &Supervisor{
+		Logger: slog.New(slog.NewTextHandler(&buf, nil)),
+	}
+	s.logExit(&CommandError{Name: "ssh", Err: codedExitError{code: 255}}, time.Second)
+	logged := buf.String()
+	for _, want := range []string{
+		"exit_code=255",
+		"ssh_hint=",
+		"OpenSSH returned 255",
+	} {
+		if !strings.Contains(logged, want) {
+			t.Fatalf("log missing %q: %s", want, logged)
+		}
 	}
 }
