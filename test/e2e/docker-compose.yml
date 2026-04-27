@@ -1,0 +1,29 @@
+services:
+  plex:
+    build:
+      context: ../..
+      dockerfile: test/e2e/Dockerfile.plex
+  ssh:
+    build:
+      context: .
+      dockerfile: Dockerfile.ssh
+    depends_on:
+      - plex
+  proxy:
+    build:
+      context: ../..
+      dockerfile: test/e2e/Dockerfile.proxy
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["cp /run/secrets/e2e_key /tmp/e2e_key && chmod 600 /tmp/e2e_key && exec /usr/local/bin/plex-proxy serve -config /config/config.yaml"]
+    volumes:
+      - ./config.yaml:/config/config.yaml:ro
+      - ./.tmp/id_ed25519:/run/secrets/e2e_key:ro
+    depends_on:
+      - ssh
+      - plex
+  test:
+    build:
+      context: ../..
+      dockerfile: test/e2e/Dockerfile.test
+    depends_on:
+      - proxy

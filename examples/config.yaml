@@ -1,0 +1,33 @@
+ssh:
+  target: plex-jump.example.com
+  remote_host: ignored
+  local_listen: 127.0.0.1:0
+  # identity_file: /home/plex-proxy/.ssh/id_ed25519
+  # config_file: /home/plex-proxy/.ssh/config
+
+plex:
+  remote_host: 127.0.0.1
+  remote_port: 32400
+  server_name: Remote Plex
+  machine_id: plex-proxy-local
+  version: 1.0.0
+
+proxy:
+  listen: 0.0.0.0:32400
+
+gdm:
+  enabled: true
+  # advertise_host: 192.168.1.10
+  ports: [32410, 32412, 32413, 32414]
+
+health:
+  listen: 127.0.0.1:8080
+
+forward:
+  - name: dlna
+    enabled: false
+    listen: 0.0.0.0:32469
+    target_host: 127.0.0.1
+    target_port: 32469
+
+log_format: text

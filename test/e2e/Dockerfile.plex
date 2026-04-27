@@ -1,0 +1,4 @@
+FROM golang:1.22-bookworm
+WORKDIR /src
+COPY test/e2e/plex_stub.go /src/plex_stub.go
+CMD ["go", "run", "-tags", "e2ehelper", "/src/plex_stub.go"]

@@ -1,0 +1,16 @@
+[Unit]
+Description=Plex Proxy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=plex-proxy
+Group=plex-proxy
+ExecStart=/usr/local/bin/plex-proxy serve -config /etc/plex-proxy/config.yaml
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

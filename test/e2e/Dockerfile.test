@@ -1,0 +1,4 @@
+FROM golang:1.22-bookworm
+WORKDIR /src
+COPY test/e2e/runner.go /src/runner.go
+CMD ["go", "run", "-tags", "e2ehelper", "/src/runner.go"]

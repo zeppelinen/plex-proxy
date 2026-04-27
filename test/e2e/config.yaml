@@ -1,0 +1,27 @@
+ssh:
+  target: tunnel@ssh
+  identity_file: /tmp/e2e_key
+  local_listen: 127.0.0.1:40000
+  extra_args:
+    - -o
+    - StrictHostKeyChecking=no
+    - -o
+    - UserKnownHostsFile=/dev/null
+
+plex:
+  remote_host: plex
+  remote_port: 32400
+  server_name: E2E Plex
+  machine_id: e2e-machine
+  version: 1.0.0
+
+proxy:
+  listen: 0.0.0.0:32400
+
+gdm:
+  enabled: true
+  advertise_host: proxy
+  ports: [32410]
+
+health:
+  listen: 0.0.0.0:8080
