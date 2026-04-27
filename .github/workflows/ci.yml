@@ -35,6 +35,16 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
       - run: go test -race ./...
+      - name: Run e2e tests
+        run: ./test/e2e/run.sh
+      - name: Publish e2e test report
+        if: always() && hashFiles('test-results/e2e.xml') != ''
+        uses: dorny/test-reporter@v3
+        with:
+          name: E2E tests
+          path: test-results/e2e.xml
+          reporter: java-junit
+          fail-on-error: false
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4

@@ -20,6 +20,19 @@ write_summary() {
 
 mkdir -p "$RESULTS_DIR"
 
+if [[ -n "$BASE_REF" ]]; then
+  git fetch --no-tags --depth=1 origin "$BASE_REF"
+
+  changed_files="$(git diff --name-only "origin/$BASE_REF"...HEAD)"
+  app_files="$(printf '%s\n' "$changed_files" | grep -E '(^go\.(mod|sum)$|\.go$)' || true)"
+  if [[ -z "$app_files" ]]; then
+    summary="$(printf '## Coverage\n\nCoverage comparison skipped because this change does not touch Go app or module files.')"
+    write_summary "$summary"
+    echo "Coverage comparison skipped: no Go app or module files changed."
+    exit 0
+  fi
+fi
+
 if [[ ! -f "$COVERAGE_PROFILE" ]]; then
   "$GO" test -count=1 -covermode=atomic -coverprofile="$COVERAGE_PROFILE" ./...
 fi
@@ -36,8 +49,6 @@ if [[ -z "$BASE_REF" ]]; then
   echo "Current coverage: $head_coverage%"
   exit 0
 fi
-
-git fetch --no-tags --depth=1 origin "$BASE_REF"
 
 baseline_dir="$(mktemp -d)"
 cleanup() {
