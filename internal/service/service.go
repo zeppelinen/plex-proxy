@@ -10,13 +10,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/justnodes/plex-proxy/internal/config"
-	"github.com/justnodes/plex-proxy/internal/gdm"
-	"github.com/justnodes/plex-proxy/internal/health"
-	"github.com/justnodes/plex-proxy/internal/netutil"
-	"github.com/justnodes/plex-proxy/internal/proxy"
-	sshtunnel "github.com/justnodes/plex-proxy/internal/ssh"
-	"github.com/justnodes/plex-proxy/internal/tcpforward"
+	"github.com/zeppelinen/plex-proxy/internal/config"
+	"github.com/zeppelinen/plex-proxy/internal/gdm"
+	"github.com/zeppelinen/plex-proxy/internal/health"
+	"github.com/zeppelinen/plex-proxy/internal/netutil"
+	"github.com/zeppelinen/plex-proxy/internal/proxy"
+	sshtunnel "github.com/zeppelinen/plex-proxy/internal/ssh"
+	"github.com/zeppelinen/plex-proxy/internal/tcpforward"
 )
 
 type App struct {

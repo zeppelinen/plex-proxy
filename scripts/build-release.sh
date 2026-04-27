@@ -7,7 +7,7 @@ cd "$ROOT"
 VERSION="${VERSION:-${GITHUB_REF_NAME:-dev}}"
 COMMIT="${COMMIT:-$(git rev-parse --short HEAD 2>/dev/null || echo unknown)}"
 DATE="${DATE:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
-LDFLAGS="-s -w -X github.com/justnodes/plex-proxy/internal/version.Version=${VERSION} -X github.com/justnodes/plex-proxy/internal/version.Commit=${COMMIT} -X github.com/justnodes/plex-proxy/internal/version.Date=${DATE}"
+LDFLAGS="-s -w -X github.com/zeppelinen/plex-proxy/internal/version.Version=${VERSION} -X github.com/zeppelinen/plex-proxy/internal/version.Commit=${COMMIT} -X github.com/zeppelinen/plex-proxy/internal/version.Date=${DATE}"
 
 rm -rf dist
 mkdir -p dist

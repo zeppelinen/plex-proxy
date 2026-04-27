@@ -1,4 +1,4 @@
-module github.com/justnodes/plex-proxy
+module github.com/zeppelinen/plex-proxy
 
 go 1.22.2
 

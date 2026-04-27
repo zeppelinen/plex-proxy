@@ -9,9 +9,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/justnodes/plex-proxy/internal/config"
-	"github.com/justnodes/plex-proxy/internal/service"
-	"github.com/justnodes/plex-proxy/internal/version"
+	"github.com/zeppelinen/plex-proxy/internal/config"
+	"github.com/zeppelinen/plex-proxy/internal/service"
+	"github.com/zeppelinen/plex-proxy/internal/version"
 )
 
 func main() {
