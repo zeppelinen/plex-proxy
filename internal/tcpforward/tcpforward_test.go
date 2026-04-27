@@ -30,8 +30,9 @@ func TestForwarderCopiesBytes(t *testing.T) {
 	_ = listener.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	done := make(chan error, 1)
 	go func() {
-		_ = Forwarder{ListenAddr: listenAddr, TargetAddr: backend.Addr().String()}.Serve(ctx)
+		done <- Forwarder{ListenAddr: listenAddr, TargetAddr: backend.Addr().String()}.Serve(ctx)
 	}()
 	time.Sleep(20 * time.Millisecond)
 	conn, err := net.Dial("tcp", listenAddr)
@@ -46,5 +47,15 @@ func TestForwarderCopiesBytes(t *testing.T) {
 	}
 	if string(buf) != "ping" {
 		t.Fatalf("got %q", buf)
+	}
+	_ = conn.Close()
+	cancel()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("forwarder did not stop")
 	}
 }
