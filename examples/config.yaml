@@ -1,22 +1,25 @@
 ssh:
-  target: plex-jump.example.com
+  # SSH host from ~/.ssh/config, or user@host.
+  target: myhome-srv
   local_listen: 127.0.0.1:0
   # identity_file: /home/plex-proxy/.ssh/id_ed25519
   # config_file: /home/plex-proxy/.ssh/config
 
 plex:
-  remote_host: 127.0.0.1
+  # Plex IP or hostname as seen from the SSH target.
+  remote_host: 192.168.1.110
   remote_port: 32400
   server_name: Remote Plex
   # Set these to the real values from http://127.0.0.1:32400/identity.
-  # machine_id: real-plex-machine-identifier
-  # version: real-plex-version
+  machine_id: real-plex-machine-identifier
+  version: real-plex-version
 
 proxy:
   listen: 0.0.0.0:32400
 
 gdm:
   enabled: true
+  # Set this to the plex-proxy machine's LAN IP when auto-detection picks the wrong address.
   # advertise_host: 192.168.1.10
   ports: [32410, 32412, 32413, 32414]
 
