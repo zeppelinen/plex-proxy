@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.4.0 - 2026-04-27
+
+- Retry occupied ssh local ports (5657065)
+- Ignore ssh config forwardings (6974fa6)
+- Update changelog for v0.3.0 (4558d59)
+
 ## v0.3.0 - 2026-04-27
 
 - Log config source on startup (601b66f)
