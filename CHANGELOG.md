@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.3.0 - 2026-04-27
+
+- Log config source on startup (601b66f)
+- Handle SSH exit status 255 (4ec4265)
+- Update changelog for v0.2.0 (1ad5102)
+
 ## v0.2.0 - 2026-04-27
 
 - Use Node 24 artifact uploads (ae0b0b7)
