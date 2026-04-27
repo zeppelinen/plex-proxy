@@ -8,6 +8,7 @@ import (
 	"net"
 	"os/exec"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 )
@@ -32,7 +33,28 @@ type ExecRunner struct{}
 
 func (ExecRunner) Run(ctx context.Context, name string, args ...string) error {
 	cmd := exec.CommandContext(ctx, name, args...)
-	return cmd.Run()
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return &CommandError{Name: name, Output: string(output), Err: err}
+	}
+	return nil
+}
+
+type CommandError struct {
+	Name   string
+	Output string
+	Err    error
+}
+
+func (e *CommandError) Error() string {
+	if output := strings.TrimSpace(e.Output); output != "" {
+		return fmt.Sprintf("%s failed: %v: %s", e.Name, e.Err, output)
+	}
+	return fmt.Sprintf("%s failed: %v", e.Name, e.Err)
+}
+
+func (e *CommandError) Unwrap() error {
+	return e.Err
 }
 
 type Supervisor struct {
@@ -82,7 +104,7 @@ func (s *Supervisor) Run(ctx context.Context) error {
 			return nil
 		}
 		if s.Logger != nil {
-			s.Logger.Warn("ssh tunnel exited", "error", err, "backoff", backoff)
+			s.logExit(err, backoff)
 		}
 		select {
 		case <-ctx.Done():
@@ -94,6 +116,27 @@ func (s *Supervisor) Run(ctx context.Context) error {
 			backoff = maxBackoff
 		}
 	}
+}
+
+func (s *Supervisor) logExit(err error, backoff time.Duration) {
+	attrs := []any{"error", err, "backoff", backoff}
+	if code, ok := ExitCode(err); ok {
+		attrs = append(attrs, "exit_code", code)
+		if code == 255 {
+			attrs = append(attrs, "ssh_hint", "OpenSSH returned 255; check ssh.target, authentication, ssh config, and network connectivity")
+		}
+	}
+	s.Logger.Warn("ssh tunnel exited", attrs...)
+}
+
+func ExitCode(err error) (int, bool) {
+	var exitCoder interface {
+		ExitCode() int
+	}
+	if errors.As(err, &exitCoder) {
+		return exitCoder.ExitCode(), true
+	}
+	return 0, false
 }
 
 func BuildArgs(c Config, localAddr string) []string {
