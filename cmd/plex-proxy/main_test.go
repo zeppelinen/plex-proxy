@@ -71,6 +71,42 @@ plex:
 	}
 }
 
+func TestConfigLocationUsesDefaultConfigPath(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	got, err := configLocation("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(home, ".config", "plex-proxy", "config.yaml")
+	if got != want {
+		t.Fatalf("location = %q, want %q", got, want)
+	}
+}
+
+func TestConfigLocationAbsolutePath(t *testing.T) {
+	got, err := configLocation("config.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !filepath.IsAbs(got) {
+		t.Fatalf("location is not absolute: %q", got)
+	}
+	if filepath.Base(got) != "config.yaml" {
+		t.Fatalf("location = %q", got)
+	}
+}
+
+func TestNewLoggerCanLogConfigFile(t *testing.T) {
+	var buf bytes.Buffer
+	logger := newLogger("text", &buf)
+	logger.Info("loading config", "config_file", "/etc/plex-proxy/config.yaml")
+	got := buf.String()
+	if !strings.Contains(got, "loading config") || !strings.Contains(got, "config_file=/etc/plex-proxy/config.yaml") {
+		t.Fatalf("log = %q", got)
+	}
+}
+
 func withOutput(out *bytes.Buffer, fn func()) {
 	oldStdout := stdout
 	oldStderr := stderr

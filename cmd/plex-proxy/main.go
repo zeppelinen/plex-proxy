@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/zeppelinen/plex-proxy/internal/config"
@@ -68,17 +69,38 @@ func serve(args []string) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
+	configSource, err := configLocation(*configPath)
+	if err != nil {
+		return err
+	}
+	bootstrapLogger := newLogger(config.Defaults().LogFormat, stdout)
+	bootstrapLogger.Info("loading config", "config_file", configSource)
 	cfg, err := config.Load(*configPath)
 	if err != nil {
 		return err
 	}
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	if cfg.LogFormat == "json" {
-		logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	}
+	logger := newLogger(cfg.LogFormat, stdout)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	return (&service.App{Config: cfg, Log: logger}).Run(ctx)
+}
+
+func newLogger(format string, out io.Writer) *slog.Logger {
+	if format == "json" {
+		return slog.New(slog.NewJSONHandler(out, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	}
+	return slog.New(slog.NewTextHandler(out, &slog.HandlerOptions{Level: slog.LevelInfo}))
+}
+
+func configLocation(path string) (string, error) {
+	if path == "" {
+		defaultPath, err := config.DefaultConfigFile()
+		if err == nil {
+			return defaultPath, nil
+		}
+		return "defaults and environment", nil
+	}
+	return filepath.Abs(path)
 }
 
 func validate(args []string) error {
