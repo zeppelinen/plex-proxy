@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.2.0 - 2026-04-27
+
+- Use Node 24 artifact uploads (ae0b0b7)
+- Update internal/proxy/proxy.go (8311fd7)
+- Update internal/config/config.go (bbcdc41)
+- Post coverage report to pull requests (ba8128e)
+- Add proxy logging config and help (eb6a13f)
+- Add release installer script (ef8d943)
+- Apply suggestions from code review (4aca74f)
+- Fix coverage path filter for shallow checkout (1d8042f)
+- Restore e2e tests and skip coverage for non-app changes (242acea)
+- Skip Docker e2e tests in CI (9ebee43)
+- Stabilize tcpforward coverage test (f632a50)
+- update .gitignore (51ca197)
+- Add CI test reports and coverage gate (fce6d20)
+- update sample config from working setup (4b8e7dd)
+- fix plex server discovery through proxy (7828507)
+- Document macOS Gatekeeper workaround (c3c0694)
+- Update changelog for v0.1.0 (ee8cbcb)
+
 ## v0.1.0 - 2026-04-27
 
 - Update release workflow changelog (041ba3b)
