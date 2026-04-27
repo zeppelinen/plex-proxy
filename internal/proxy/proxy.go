@@ -5,12 +5,14 @@ import (
 	"context"
 	"encoding/xml"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type contextKey string
@@ -18,6 +20,15 @@ type contextKey string
 const originalHostKey contextKey = "originalHost"
 
 func New(target *url.URL, plexHost string) http.Handler {
+	return NewWithOptions(target, plexHost, Options{})
+}
+
+type Options struct {
+	Log       *slog.Logger
+	AccessLog bool
+}
+
+func NewWithOptions(target *url.URL, plexHost string, opts Options) http.Handler {
 	rp := httputil.NewSingleHostReverseProxy(target)
 	original := rp.Director
 	rp.Director = func(req *http.Request) {
@@ -42,11 +53,16 @@ func New(target *url.URL, plexHost string) http.Handler {
 		}
 	}
 	rp.ModifyResponse = rewriteServersResponse
+	rp.ErrorHandler = errorHandler(opts.Log)
 	rp.FlushInterval = -1
-	return rp
+	return withAccessLog(rp, opts)
 }
 
 func NewDynamic(targetURL func() *url.URL, plexHost string) http.Handler {
+	return NewDynamicWithOptions(targetURL, plexHost, Options{})
+}
+
+func NewDynamicWithOptions(targetURL func() *url.URL, plexHost string, opts Options) http.Handler {
 	rp := &httputil.ReverseProxy{
 		Director: func(req *http.Request) {
 			captureOriginalHost(req)
@@ -72,9 +88,10 @@ func NewDynamic(targetURL func() *url.URL, plexHost string) http.Handler {
 			}
 		},
 		ModifyResponse: rewriteServersResponse,
+		ErrorHandler:   errorHandler(opts.Log),
 		FlushInterval:  -1,
 	}
-	return rp
+	return withAccessLog(rp, opts)
 }
 
 func TargetURL(scheme, addr string) (*url.URL, error) {
@@ -83,6 +100,82 @@ func TargetURL(scheme, addr string) (*url.URL, error) {
 
 func isWebsocket(req *http.Request) bool {
 	return strings.EqualFold(req.Header.Get("Upgrade"), "websocket")
+}
+
+func errorHandler(logger *slog.Logger) func(http.ResponseWriter, *http.Request, error) {
+	return func(w http.ResponseWriter, req *http.Request, err error) {
+		if logger != nil {
+			host, _ := req.Context().Value(originalHostKey).(string)
+			if host == "" {
+				host = req.Host
+			}
+			logger.Error("proxy request failed",
+				"method", req.Method,
+				"path", req.URL.RequestURI(),
+				"host", host,
+				"upstream_host", req.Host,
+				"remote_addr", req.RemoteAddr,
+				"user_agent", req.UserAgent(),
+				"error", err,
+			)
+		}
+		http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
+	}
+}
+
+func withAccessLog(next http.Handler, opts Options) http.Handler {
+	if !opts.AccessLog {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		start := time.Now()
+		method := req.Method
+		path := req.URL.RequestURI()
+		host := req.Host
+		remoteAddr := req.RemoteAddr
+		userAgent := req.UserAgent()
+		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(rec, req)
+		if opts.Log != nil {
+			opts.Log.Info("proxy access",
+				"method", method,
+				"path", path,
+				"host", host,
+				"remote_addr", remoteAddr,
+				"user_agent", userAgent,
+				"status", rec.status,
+				"bytes", rec.bytes,
+				"duration_ms", time.Since(start).Milliseconds(),
+			)
+		}
+	})
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+	bytes  int64
+}
+
+func (r *statusRecorder) WriteHeader(status int) {
+	r.status = status
+	r.ResponseWriter.WriteHeader(status)
+}
+
+func (r *statusRecorder) Write(body []byte) (int, error) {
+	n, err := r.ResponseWriter.Write(body)
+	r.bytes += int64(n)
+	return n, err
+}
+
+func (r *statusRecorder) Flush() {
+	if flusher, ok := r.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
+func (r *statusRecorder) Unwrap() http.ResponseWriter {
+	return r.ResponseWriter
 }
 
 func captureOriginalHost(req *http.Request) {

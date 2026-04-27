@@ -31,9 +31,14 @@ plex:
 	if !cfg.GDM.Enabled {
 		t.Fatal("gdm should default enabled")
 	}
+	if !cfg.Proxy.AccessLog {
+		t.Fatal("proxy access log should default enabled")
+	}
 }
 
 func TestLoadEnvOverrides(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
 	t.Setenv("PLEX_PROXY_SSH_TARGET", "env-host")
 	t.Setenv("PLEX_PROXY_REMOTE_HOST", "plex.local")
 	t.Setenv("PLEX_PROXY_SERVER_NAME", "Env Plex")
@@ -43,6 +48,37 @@ func TestLoadEnvOverrides(t *testing.T) {
 	}
 	if cfg.SSH.Target != "env-host" || cfg.Plex.RemoteHost != "plex.local" || cfg.Plex.ServerName != "Env Plex" {
 		t.Fatalf("env overrides not applied: %+v", cfg)
+	}
+}
+
+func TestLoadUsesDefaultConfigPath(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	path := filepath.Join(home, DefaultConfigPath)
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	data := []byte(`
+ssh:
+  target: default-host
+plex:
+  remote_host: plex.default
+  server_name: Default Plex
+proxy:
+  access_log: false
+`)
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.SSH.Target != "default-host" || cfg.Plex.RemoteHost != "plex.default" {
+		t.Fatalf("default config not loaded: %+v", cfg)
+	}
+	if cfg.Proxy.AccessLog {
+		t.Fatal("proxy access log should be disabled by config")
 	}
 }
 

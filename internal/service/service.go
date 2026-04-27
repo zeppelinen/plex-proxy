@@ -85,13 +85,13 @@ func (a *App) Run(ctx context.Context) error {
 }
 
 func (a *App) runHTTPProxy(ctx context.Context, tunnel *sshtunnel.Supervisor) error {
-	handler := proxy.NewDynamic(func() *url.URL {
+	handler := proxy.NewDynamicWithOptions(func() *url.URL {
 		target, err := proxy.TargetURL(a.Config.Plex.Scheme, tunnel.LocalAddr())
 		if err != nil {
 			return &url.URL{Scheme: "http", Host: "127.0.0.1:1"}
 		}
 		return target
-	}, a.Config.RemotePlexAddr())
+	}, a.Config.RemotePlexAddr(), proxy.Options{Log: a.Log, AccessLog: a.Config.Proxy.AccessLog})
 	srv := &http.Server{Addr: a.Config.Proxy.Listen, Handler: handler}
 	go func() {
 		<-ctx.Done()
